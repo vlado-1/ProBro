@@ -29,6 +29,7 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
 }) => {
 
     const cellRef = useRef<HTMLDivElement>(null);
+    const timerRef = useRef<any>(null);
 
     const handleClick = (event: React.MouseEvent) => {
         onSort(event.ctrlKey || event.metaKey);
@@ -42,11 +43,12 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
         }
     };
 
-    let timer;
     const handleKeyInputTimeout = () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-            reloadData(configuration.initialBatchSizeLoad);
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+        }
+        timerRef.current = setTimeout(() => {
+            if (reloadData) {reloadData(configuration.initialBatchSizeLoad);}
         }, 500);
         setCellSelected();
     };
@@ -54,15 +56,20 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
     const testKeyDown = (event: React.KeyboardEvent) => {
         if (event.key === 'Enter') {
             event.preventDefault();
-            reloadData(configuration.initialBatchSizeLoad);
+            if (reloadData) {reloadData(configuration.initialBatchSizeLoad);}
             setCellSelected();
         }
     };
 
-    const handleInputKeyDown = (event) => {
-        const tempFilters = filters;
-        tempFilters.columns[column.key] = event.target.value;
-        setFilters(tempFilters);
+    const handleInputKeyDown = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = event.target.value;
+        setFilters((prev: any) => ({
+            ...prev,
+            columns: {
+                ...(prev.columns || {}),
+                [column.key]: value,
+            },
+        }));
         if (configuration.filterAsYouType === true) {
             handleKeyInputTimeout();
         }
@@ -99,7 +106,7 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
             <TextField
                 variant='standard'
                 size='small'
-                defaultValue={filters.columns[column.key]}
+                value={(filters.columns && (filters.columns as any)[column.key]) || ''}
                 onChange={handleInputKeyDown}
                 onKeyDown={testKeyDown}
                 fullWidth={true}
@@ -118,4 +125,4 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
     );
 };
 
-export default ColumnHeaderCell;
+export { ColumnHeaderCell, ColumnHeaderCellProps };
