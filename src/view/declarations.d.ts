@@ -11,5 +11,3 @@ declare module "*.jpg" {
     const value: { default: string };
     export default value;
 }
-
-declare module "*.css";

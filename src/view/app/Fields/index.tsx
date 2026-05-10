@@ -9,5 +9,5 @@ declare global {
     }
 }
 
-const root = createRoot((document.getElementById('root') as Element));
+const root = createRoot(document.getElementById('root'));
 root.render(<Fields />);
