@@ -10,9 +10,9 @@ export class CustomViewProvider extends TablesListProvider {
     public override node: CustomViewNode | undefined;
 
     public _onDidChangeTreeData: vscode.EventEmitter<
-        TableNode | undefined | void
-    > = new vscode.EventEmitter<TableNode | undefined | void>();
-    readonly onDidChangeTreeData: vscode.Event<TableNode | undefined | void> =
+        TableNode | null | undefined
+    > = new vscode.EventEmitter<TableNode | null | undefined>();
+    readonly onDidChangeTreeData: vscode.Event<TableNode | null | undefined> =
         this._onDidChangeTreeData.event;
     public configs: IConfig[] | undefined;
     constructor(
@@ -42,8 +42,8 @@ export class CustomViewProvider extends TablesListProvider {
     public async getChildren(
         element?: CustomViewNode
     ): Promise<CustomViewNode[]> {
-        if (!element) return this.getCustomViews();
-        else return [];
+        if (!element) {return this.getCustomViews();}
+        else {return [];}
     }
 
     saveCustomView(node: CustomViewNode): void {

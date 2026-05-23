@@ -7,9 +7,9 @@ import { Constants } from '../common/Constants';
 
 export class FavoritesProvider extends TablesListProvider {
     public _onDidChangeTreeData: vscode.EventEmitter<
-        TableNode | undefined | void
-    > = new vscode.EventEmitter<TableNode | undefined | void>();
-    readonly onDidChangeTreeData: vscode.Event<TableNode | undefined | void> =
+        TableNode | null | undefined
+    > = new vscode.EventEmitter<TableNode | null | undefined>();
+    readonly onDidChangeTreeData: vscode.Event<TableNode | null | undefined> =
         this._onDidChangeTreeData.event;
     public configs: IConfig[] | undefined;
 
