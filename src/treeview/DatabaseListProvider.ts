@@ -6,9 +6,9 @@ import * as connectionNode from './DbConnectionNode';
 import { IRefreshCallback } from './IRefreshCallback';
 
 export class DatabaseListProvider implements vscode.TreeDataProvider<INode> {
-    private _onDidChangeTreeData: vscode.EventEmitter<INode | undefined | void> =
-        new vscode.EventEmitter<INode | undefined | void>();
-    readonly onDidChangeTreeData: vscode.Event<INode | undefined | void> =
+    private _onDidChangeTreeData: vscode.EventEmitter<INode | null | undefined> =
+        new vscode.EventEmitter<INode | null | undefined>();
+    readonly onDidChangeTreeData: vscode.Event<INode | null | undefined> =
         this._onDidChangeTreeData.event;
 
     constructor(

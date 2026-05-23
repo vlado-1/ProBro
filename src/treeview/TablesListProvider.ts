@@ -127,9 +127,9 @@ export class TablesListProvider implements vscode.TreeDataProvider<INode> {
         }
     }
 
-    public _onDidChangeTreeData: vscode.EventEmitter<INode | undefined | void> =
-        new vscode.EventEmitter<INode | undefined | void>();
-    readonly onDidChangeTreeData: vscode.Event<INode | undefined | void> =
+    public _onDidChangeTreeData: vscode.EventEmitter<INode | null | undefined> =
+        new vscode.EventEmitter<INode | null | undefined>();
+    readonly onDidChangeTreeData: vscode.Event<INode | null | undefined> =
         this._onDidChangeTreeData.event;
 
     resolveTreeItem(
