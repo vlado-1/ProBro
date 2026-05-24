@@ -6,9 +6,12 @@ export class VersionChecker{
 
     private readonly pjson = require('./../../../../package.json');
     public versionFromPackage: string = this.pjson.version;
-    private lastSeenVesion: string | null = this.context.globalState.get(`${Constants.globalExtensionKey}-version`)?? null;
+    private lastSeenVesion: string | null = null;
 
-    constructor(private context: vscode.ExtensionContext){ }
+    constructor(private context: vscode.ExtensionContext) {
+        this.lastSeenVesion =
+            this.context.globalState.get(`${Constants.globalExtensionKey}-version`) ?? null;
+    }
 
     public isNewVersion(): boolean{
 

@@ -119,6 +119,11 @@
                     "default": true,
                     "markdownDescription": "Use New DB Client implementation"
                 },
+                "pro-bro.development.useMockProcessor": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Use Mock Processor implementation for testing"
+                },
                 "pro-bro.gridTextSize": {
                     "type": "string",
                     "default": "Medium",

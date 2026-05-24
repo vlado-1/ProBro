@@ -28,6 +28,11 @@ export class ProcessorFactory {
         const configuration = vscode.workspace.getConfiguration(
             Constants.globalExtensionKey
         );
+        const useMock: boolean =
+            configuration.get('development.useMockProcessor') ?? false;
+        if (useMock === true) {
+            return ProcessorType.Mock;
+        }
         const useNew: boolean =
             configuration.get('development.useNewDbClient') ?? false;
 

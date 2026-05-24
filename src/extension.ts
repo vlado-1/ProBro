@@ -145,47 +145,47 @@ export async function activate(context: vscode.ExtensionContext) {
     const defaultRuntimeName = ablConfig.get<string>('defaultRuntime');
     const oeRuntimes: Array<any> = ablConfig.get<Array<any>>('runtimes') ?? [];
 
-    const oejRuntimeName = await vscode.workspace
-        .findFiles('openedge-project.json')
-        .then((files) => {
-            if (files.length > 0) {
-                return getOEJRuntime(files[0]);
-            } else {
-                vscode.window.showWarningMessage(
-                    'No openedge-project.json file found at the root.',
-                );
-                return null;
-            }
-        });
-
     function getOEJRuntime(uri: vscode.Uri) {
         allFileContent = readFile(uri.fsPath);
         const oeRuntime = getOEVersion(allFileContent);
         return oeRuntime;
     }
 
-    let defaultRuntime;
-    if (Array.isArray(oeRuntimes) && oeRuntimes.length > 0) {
-        defaultRuntime = oeRuntimes.some(
-            (runtime) => runtime.name === oejRuntimeName,
-        )
-            ? oeRuntimes.find((runtime) => runtime.name === oejRuntimeName)
-            : oeRuntimes.find(
-                  (runtime) => runtime.name === defaultRuntimeName,
-              ) || oeRuntimes[0];
-    } else {
-        vscode.window.showWarningMessage(
-            'No OpenEdge runtime configured on this machine.',
-        );
-        defaultRuntime = null;
-    }
+    // Defer runtime detection so activation returns quickly.
+    vscode.workspace.findFiles('openedge-project.json').then((files) => {
+        let oejRuntimeName: string | null = null;
+        if (files.length > 0) {
+            try {
+                oejRuntimeName = getOEJRuntime(files[0]);
+            } catch (err) {
+                console.error('Failed to read openedge-project.json:', err);
+            }
+        } else {
+            vscode.window.showWarningMessage(
+                'No openedge-project.json file found at the root.',
+            );
+        }
 
-    if (defaultRuntime !== null) {
-        Constants.dlc = defaultRuntime.path;
-        vscode.window.showInformationMessage(
-            `Runtime selected : ${defaultRuntime.name}, Path: ${defaultRuntime.path}`,
-        );
-    }
+        let defaultRuntime;
+        if (Array.isArray(oeRuntimes) && oeRuntimes.length > 0) {
+            defaultRuntime =
+                oejRuntimeName && oeRuntimes.some((runtime) => runtime.name === oejRuntimeName)
+                    ? oeRuntimes.find((runtime) => runtime.name === oejRuntimeName)
+                    : oeRuntimes.find((runtime) => runtime.name === defaultRuntimeName) || oeRuntimes[0];
+        } else {
+            vscode.window.showWarningMessage(
+                'No OpenEdge runtime configured on this machine.',
+            );
+            defaultRuntime = null;
+        }
+
+        if (defaultRuntime !== null) {
+            Constants.dlc = defaultRuntime.path;
+            vscode.window.showInformationMessage(
+                `Runtime selected : ${defaultRuntime.name}, Path: ${defaultRuntime.path}`,
+            );
+        }
+    });
 
     let importConnections = vscode.workspace
         .getConfiguration(Constants.globalExtensionKey)
