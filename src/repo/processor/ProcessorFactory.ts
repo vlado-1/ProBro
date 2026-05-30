@@ -11,7 +11,8 @@ export class ProcessorFactory {
         ProcessorType.Database;
 
     public static getProcessorInstance(): IProcessor {
-        switch (ProcessorFactory.determineProcessorType()) {
+        const type = ProcessorFactory.determineProcessorType();
+        switch (type) {
             case ProcessorType.Database:
                 return DbProcessor.getInstance();
             case ProcessorType.Mock:

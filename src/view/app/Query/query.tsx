@@ -318,7 +318,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
             configuration.initialBatchSizeLoad /*number of records for first load*/,
             '',
             sortColumns,
-            filters,
+            filtersRef.current,
             configuration.batchMaxTimeout /*ms for data retrieval*/,
             configuration.batchMinTimeout
         );
@@ -328,7 +328,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         setLoaded(0);
         setRawRows([]);
         setFormattedRows([]);
-        makeQuery(0, loaded, '', sortColumns, filters, 0, 0);
+        makeQuery(0, loaded, '', sortColumns, filtersRef.current, 0, 0);
     }
 
     function handleSaveClick(name: string) {
@@ -403,7 +403,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
             configuration.batchSize,
             rowID,
             sortColumns,
-            filters,
+            filtersRef.current,
             configuration.batchMaxTimeout,
             configuration.batchMinTimeout
         );
@@ -418,7 +418,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         setLoaded(0);
         setRawRows([]);
         setFormattedRows([]);
-        makeQuery(0, loaded, '', inputSortColumns, filters, 0, 0);
+        makeQuery(0, loaded, '', inputSortColumns, filtersRef.current, 0, 0);
     }
 
     function allRecordsRetrieved(

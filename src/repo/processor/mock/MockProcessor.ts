@@ -27,7 +27,7 @@ export class MockProcessor implements IProcessor {
     getTableData(config: any, tableName: string | undefined, inputParams: any): Promise<any> {
         const debug = this.createDebug();
         if (!config || !tableName || !inputParams) {
-            return Promise.resolve({ columns: [], data: [], debug });
+            return Promise.resolve({ columns: [], rawData: [], formattedData: [], debug });
         }
 
         const columns = [
@@ -43,13 +43,45 @@ export class MockProcessor implements IProcessor {
             { ROWID: '0x0002', name: 'Mock record 2', amount: 56.78, created: '2023-01-02T11:00:00.000', active: false },
         ];
 
-        return Promise.resolve({ columns, data, debug });
+        // Apply OE-style prefix (BEGINS) filtering from inputParams.filters.columns if present
+        let filtered = data;
+        try {
+            const filtersObj = inputParams?.filters ?? {};
+            const filterCols = filtersObj?.columns ?? {};
+            const enabled = filtersObj?.enabled !== false; // default to true
+            
+
+            let activeFilters: Array<[string, any]> = [];
+            if (enabled) {
+                activeFilters = Object.entries(filterCols).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '');
+            }
+
+            if (activeFilters.length > 0) {
+                filtered = data.filter((row) => {
+                    return activeFilters.every(([colKey, colVal]) => {
+                        const cell = row[colKey];
+                        if (cell === null || cell === undefined) {return false;}
+                        // OE BEGINS is case-insensitive for typical usage; emulate with toLowerCase + startsWith
+                        return String(cell).toLowerCase().startsWith(String(colVal).toLowerCase());
+                    });
+                });
+            }
+                
+        } catch (e) {
+            // ignore and return unfiltered data on error
+            filtered = data;
+            
+        }
+
+        const formattedData = filtered.map((r) => ({ ...r }));
+
+        return Promise.resolve({ columns, rawData: filtered, formattedData, debug });
     }
 
     submitTableData(config: any, tableName: string | undefined, inputParams: any): Promise<any> {
         const debug = this.createDebug();
         if (!config || !tableName || !inputParams) {
-            return Promise.resolve({ columns: [], data: [], debug });
+            return Promise.resolve({ columns: [], rawData: [], formattedData: [], debug });
         }
 
         // Simulate submit success by returning the submitted rows back
@@ -59,8 +91,9 @@ export class MockProcessor implements IProcessor {
         ];
 
         const data = (inputParams && inputParams.data) || [];
+        const formattedData = Array.isArray(data) ? data.map((r) => ({ ...r })) : [];
 
-        return Promise.resolve({ columns, data, debug });
+        return Promise.resolve({ columns, rawData: data, formattedData, debug });
     }
 
     getTableDetails(config: any, tableName: string | undefined): Promise<any> {
