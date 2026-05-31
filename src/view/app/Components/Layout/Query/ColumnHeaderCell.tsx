@@ -118,8 +118,8 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
                     '& .MuiInputBase-input': {
                         fontSize: '0.8rem',
                         padding: '4px',
-                        backgroundColor: 'var(--vscode-input-background)',
-                        color: 'var(--vscode-input-foreground)',
+                        backgroundColor: 'var(--vscode-input-background, #3c3c3c)',
+                        color: 'var(--vscode-input-foreground, #cccccc)',
                     },
                 }}
             />

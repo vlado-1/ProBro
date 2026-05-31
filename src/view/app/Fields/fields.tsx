@@ -91,7 +91,9 @@ function Fields() {
                 }
                 const cellValue = (row as any)[key];
                 if (cellValue === undefined || cellValue === null) {return false;}
-                return String(cellValue).toLowerCase().includes(String(filterValue).toLowerCase());
+                const cellStr = String(cellValue).toLowerCase();
+                const filterStr = String(filterValue).toLowerCase().trim();
+                return cellStr.startsWith(filterStr);
             });
         });
         setFilteredRows(filtered);
