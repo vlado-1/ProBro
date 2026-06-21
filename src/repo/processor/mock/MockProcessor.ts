@@ -145,7 +145,7 @@ export class MockProcessor implements IProcessor {
             { cName: 'IDX_ROWID', cFlags: '', cFields: 'ROWID' },
         ];
 
-        return Promise.resolve({ fields, indexes, tableNamse: tableName ?? '', debug });
+        return Promise.resolve({ fields, indexes, tableName: tableName ?? '', debug });
     }
 
     private createDebug() {
