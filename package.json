@@ -292,11 +292,6 @@
                 "icon": "$(search)"
             },
             {
-                "command": "pro-bro.fieldsClearFilters",
-                "title": "pro-bro: Clear Fields Filters",
-                "icon": "$(clear-all)"
-            },
-            {
                 "command": "pro-bro.removeCustomView",
                 "title": "pro-bro: Remove Custom View",
                 "icon": "$(trash)"
@@ -326,11 +321,6 @@
                 },
                 {
                     "command": "pro-bro.fieldsOpenQuery",
-                    "when": "view == pro-bro-fields",
-                    "group": "navigation"
-                },
-                {
-                    "command": "pro-bro.fieldsClearFilters",
                     "when": "view == pro-bro-fields",
                     "group": "navigation"
                 }

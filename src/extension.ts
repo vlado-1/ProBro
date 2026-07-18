@@ -561,21 +561,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand(
-            `${Constants.globalExtensionKey}.fieldsClearFilters`,
-            () => {
-                if (!fieldsProvider._view) {
-                    return;
-                }
-
-                fieldsProvider._view.webview.postMessage({
-                    command: 'clearFilters',
-                });
-            },
-        ),
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand(
             `${Constants.globalExtensionKey}.deleteConnection`,
             async (dbConnectionNode: DbConnectionNode) => {
                 const confirmation = await vscode.window.showWarningMessage(
