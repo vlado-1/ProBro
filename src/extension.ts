@@ -520,8 +520,56 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (tablesListProvider.node === undefined) {
                     return;
                 }
-
                 loadQueryEditor(tablesListProvider.node);
+            },
+        ),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            `${Constants.globalExtensionKey}.fieldsRefreshView`,
+            () => {
+                const tableNode = fieldsProvider.tableNode;
+                if (!tableNode) {
+                    vscode.window.showInformationMessage(
+                        'Select a table before refreshing Fields Explorer.',
+                    );
+                    return;
+                }
+
+                fieldsProvider.tableListProvider?.displayData(tableNode, false);
+            },
+        ),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            `${Constants.globalExtensionKey}.fieldsOpenQuery`,
+            () => {
+                const tableNode = fieldsProvider.tableNode;
+                if (!tableNode) {
+                    vscode.window.showInformationMessage(
+                        'Select a table before opening the query editor.',
+                    );
+                    return;
+                }
+
+                queryEditorDblClick(tableNode, true);
+            },
+        ),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            `${Constants.globalExtensionKey}.fieldsClearFilters`,
+            () => {
+                if (!fieldsProvider._view) {
+                    return;
+                }
+
+                fieldsProvider._view.webview.postMessage({
+                    command: 'clearFilters',
+                });
             },
         ),
     );

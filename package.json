@@ -282,6 +282,21 @@
                 "icon": "$(play)"
             },
             {
+                "command": "pro-bro.fieldsRefreshView",
+                "title": "pro-bro: Refresh Fields Explorer",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "pro-bro.fieldsOpenQuery",
+                "title": "pro-bro: Open Fields Query",
+                "icon": "$(search)"
+            },
+            {
+                "command": "pro-bro.fieldsClearFilters",
+                "title": "pro-bro: Clear Fields Filters",
+                "icon": "$(clear-all)"
+            },
+            {
                 "command": "pro-bro.removeCustomView",
                 "title": "pro-bro: Remove Custom View",
                 "icon": "$(trash)"
@@ -302,6 +317,21 @@
                 {
                     "command": "pro-bro.list-filter",
                     "when": "view == pro-bro-tables",
+                    "group": "navigation"
+                },
+                {
+                    "command": "pro-bro.fieldsRefreshView",
+                    "when": "view == pro-bro-fields",
+                    "group": "navigation"
+                },
+                {
+                    "command": "pro-bro.fieldsOpenQuery",
+                    "when": "view == pro-bro-fields",
+                    "group": "navigation"
+                },
+                {
+                    "command": "pro-bro.fieldsClearFilters",
+                    "when": "view == pro-bro-fields",
                     "group": "navigation"
                 }
             ],

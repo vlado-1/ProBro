@@ -13,7 +13,7 @@ import ColumnHeaderCell from '@app/Components/Layout/Query/ColumnHeaderCell';
 
 interface FieldsExplorerEvent {
     id: string;
-    command: 'data';
+    command: 'data' | 'clearFilters';
     data: TableDetails;
 }
 
@@ -70,7 +70,11 @@ function Fields() {
         columns: {},
         enabled: true,
     });
+    const rowsRef = useRef(rows);
     const filtersRef = useRef(filters);
+    useEffect(() => {
+        rowsRef.current = rows;
+    }, [rows]);
     const updateFilters = (filters: { columns: object; enabled: boolean }) => {
         filtersRef.current = filters;
         setFilters(filters);
@@ -217,6 +221,13 @@ function Fields() {
                                     )
                             );
                         }
+                        break;
+                    case 'clearFilters':
+                        updateFilters({
+                            columns: {},
+                            enabled: true,
+                        });
+                        setFilteredRows(rowsRef.current);
                         break;
                 }
             }
