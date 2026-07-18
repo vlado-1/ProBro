@@ -1,4 +1,4 @@
-import { UIEvent, useEffect, useState } from 'react';
+import { UIEvent, useCallback, useEffect, useMemo, useRef } from 'react';
 import DataGrid, {
     SortColumn,
     CopyEvent,
@@ -47,48 +47,51 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
     reloadData,
     setFilters,
 }) => {
-
-    const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
-
-    const handleOutsideClick = (event: MouseEvent) => {
-        const grid = queryGridRef.current?.element?.contains(event.target as Node);
-        if (!grid) {
-            setSelectedColumn(null);
-        }
-    };
+    const reloadDataRef = useRef(reloadData);
 
     useEffect(() => {
-        document.addEventListener('mousedown', handleOutsideClick);
-        return () => {
-            document.removeEventListener('mousedown', handleOutsideClick);
-        };
+        reloadDataRef.current = reloadData;
+    }, [reloadData]);
+
+    const handleReloadData = useCallback((loaded: number) => {
+        reloadDataRef.current(loaded);
     }, []);
 
-    const adjustedColumns = selected.map((column, index) => {
-        if (index === 0) {
-            return column;
-        }
+    const renderHeaderCell = useCallback(
+        (props) => {
+            return (
+                <ColumnHeaderCell
+                    column={props.column}
+                    sortDirection={props.sortDirection}
+                    priority={props.priority}
+                    onSort={props.onSort}
+                    isCellSelected={props.isCellSelected}
+                    setCellSelected={props.setCellSelected}
+                    filters={filters}
+                    setFilters={setFilters}
+                    configuration={configuration}
+                    reloadData={handleReloadData}
+                    manageFocus={true}
+                />
+            );
+        },
+        [configuration, filters, handleReloadData, setFilters]
+    );
 
-        return {
-            ...column,
-            headerRenderer: function (props) {
-                return (
-                    <ColumnHeaderCell
-                        column={props.column}
-                        sortDirection={props.sortDirection}
-                        priority={props.priority}
-                        onSort={props.onSort}
-                        filters={filters}
-                        isCellSelected={selectedColumn === props.column.key}
-                        setCellSelected={() => setSelectedColumn(props.column.key)}
-                        setFilters={setFilters}
-                        configuration={configuration}
-                        reloadData={reloadData}
-                    />
-                );
-            },
-        };
-    });
+    const adjustedColumns = useMemo(
+        () =>
+            selected.map((column, index) => {
+                if (index === 0) {
+                    return column;
+                }
+
+                return {
+                    ...column,
+                    headerRenderer: renderHeaderCell,
+                };
+            }),
+        [renderHeaderCell, selected]
+    );
     const calculateHeight = () => {
         const rowCount = rows.length;
         const cellHeight = getCellHeight();

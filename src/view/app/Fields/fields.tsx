@@ -65,6 +65,7 @@ function Fields() {
     const vscode = getVSCodeAPI();
     const configuration = getVSCodeConfiguration();
     const logger = new Logger(configuration.logging.react);
+    const lastPostedColumnsRef = useRef<string>('');
 
     const [filters, setFilters] = useState({
         columns: {},
@@ -148,6 +149,7 @@ function Fields() {
                     filters={filters}
                     setFilters={updateFilters}
                     configuration={configuration} 
+                    manageFocus={true}
                 />
             );
         };
@@ -224,16 +226,25 @@ function Fields() {
     }, []);
 
     useEffect(() => {
+        const columns = rows
+            .filter((row) => (selectedRows ?? new Set<number>()).has(row.order))
+            .map((row) => row.name);
+        const signature = JSON.stringify(columns);
+
+        if (lastPostedColumnsRef.current === signature) {
+            return;
+        }
+
+        lastPostedColumnsRef.current = signature;
+
         const obj: ICommand = {
             id: '1',
             action: CommandAction.UpdateColumns,
-            columns: rows
-                .filter((row) => selectedRows.has(row.order))
-                .map((row) => row.name),
+            columns,
         };
         logger.log('fields columns update', obj);
         vscode.postMessage(obj);
-    });
+    }, [rows, selectedRows]);
 
     const refresh = () => {
         const obj: ICommand = {

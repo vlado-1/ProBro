@@ -13,6 +13,7 @@ interface ColumnHeaderCellProps {
     setFilters: (filters: any) => void;
     configuration: any;
     reloadData?: (batchSize: number) => void;
+    manageFocus?: boolean;
 }
 
 const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
@@ -26,22 +27,36 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
     setFilters,
     configuration,
     reloadData,
+    manageFocus = false,
 }) => {
 
     const cellRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useLayoutEffect(() => {
-        if (!isCellSelected) {return;}
+        if (!manageFocus) {
+            return;
+        }
+
+        if (!isCellSelected) {
+            return;
+        }
+
         inputRef.current?.focus({ preventScroll: true });
-    }, [isCellSelected]);
+    }, [isCellSelected, manageFocus]);
 
     const handleClick = (event: React.MouseEvent) => {
+        if (event.target !== event.currentTarget) {
+            return;
+        }
         onSort(event.ctrlKey || event.metaKey);
 
     };
 
     const handleKeyDown = (event: React.KeyboardEvent) => {
+        if (event.target !== event.currentTarget) {
+            return;
+        }
         if (event.key === ' ' || event.key === 'Enter') {
             event.preventDefault();
             onSort(event.ctrlKey || event.metaKey);
@@ -56,20 +71,18 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
         timerRef.current = setTimeout(() => {
             reloadData && reloadData(configuration.initialBatchSizeLoad);
         }, 500);
-        setCellSelected && setCellSelected();
     };
 
     const testKeyDown = (event: React.KeyboardEvent) => {
         if (event.key === 'Enter') {
             event.preventDefault();
             reloadData && reloadData(configuration.initialBatchSizeLoad);
-            setCellSelected && setCellSelected();
         }
     };
 
     const handleInputKeyDown = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const value = event.target.value;
-        
+
         const tempFilters = {
             ...filters,
             columns: {
@@ -117,7 +130,11 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
                 value={filters?.columns?.[column.key] ?? ''}
                 onChange={handleInputKeyDown}
                 onKeyDown={testKeyDown}
-                onFocus={setCellSelected}
+                onFocus={() => {
+                    if (manageFocus) {
+                        setCellSelected?.();
+                    }
+                }}
                 inputRef={inputRef}
                 fullWidth={true}
                 InputProps={{ disableUnderline: true }}

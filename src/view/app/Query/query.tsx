@@ -1,4 +1,4 @@
-import { Fragment, UIEvent, useEffect, useRef, useState } from 'react';
+import { Fragment, UIEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     SortColumn,
@@ -81,10 +81,13 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
 
     const [filters, _setFilters] = useState<IFilters>(createEmptyFilters());
     const filtersRef = useRef(filters);
-    const setFilters = (data) => {
-        filtersRef.current = data;
-        _setFilters(data);
-    };
+    const setFilters = useMemo(
+        () => (data: IFilters) => {
+            filtersRef.current = data;
+            _setFilters(data);
+        },
+        []
+    );
 
     const windowResize = () => {
         setWindowHeight(window.innerHeight);
@@ -271,9 +274,10 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         }
     };
 
-    const messageEvent = (event) => {
+    const messageEventRef = useRef<(event: MessageEvent) => void>(() => undefined);
+
+    messageEventRef.current = (event) => {
         const message = event.data;
-        logger.log('got query data', message);
         switch (message.command) {
             case 'highlightColumn':
                 highlightColumn((message as HighlightFieldsCommand).column);
@@ -300,11 +304,15 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     };
 
     useEffect(() => {
-        window.addEventListener('message', messageEvent);
-        return () => {
-            window.removeEventListener('message', messageEvent);
+        const stableMessageEvent = (event: MessageEvent) => {
+            messageEventRef.current?.(event);
         };
-    });
+
+        window.addEventListener('message', stableMessageEvent);
+        return () => {
+            window.removeEventListener('message', stableMessageEvent);
+        };
+    }, []);
 
     const prepareQuery = () => {
         if (isLoading) {
@@ -482,24 +490,23 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         setOpen(true);
     };
 
-    function filterColumns() {
-        if (selectedColumns.length !== 0) {
-            const selection = columns.filter((column) => {
-                let testColumn = column.key;
-                if (/\[\d+\]$/.test(column.key)) {
-                    testColumn = column.key.match(/[^[]+/)[0];
-                }
-                return (
-                    selectedColumns.includes(testColumn) ||
-                    testColumn === 'select-row'
-                );
-            });
-            return selection;
-        } else {
+    const selected = useMemo(() => {
+        if (selectedColumns.length === 0) {
             return [];
         }
-    }
-    const selected = filterColumns();
+
+        return columns.filter((column) => {
+            let testColumn = column.key;
+            if (/\[\d+\]$/.test(column.key)) {
+                testColumn = column.key.match(/[^[]+/)[0];
+            }
+
+            return (
+                selectedColumns.includes(testColumn) ||
+                testColumn === 'select-row'
+            );
+        });
+    }, [columns, selectedColumns]);
 
     function handleCopy({ sourceRow, sourceColumnKey }: CopyEvent<any>): void {
         if (window.isSecureContext) {
