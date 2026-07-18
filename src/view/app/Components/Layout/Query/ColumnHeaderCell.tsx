@@ -53,18 +53,10 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
     }, [isCellSelected, manageFocus]);
 
     const handleClick = (event: React.MouseEvent) => {
-        if (event.target !== event.currentTarget) {
-            return;
-        }
-
         onSort(event.ctrlKey || event.metaKey);
     };
 
     const handleKeyDown = (event: React.KeyboardEvent) => {
-        if (event.target !== event.currentTarget) {
-            return;
-        }
-
         if (event.key === ' ' || event.key === 'Enter') {
             event.preventDefault();
             onSort(event.ctrlKey || event.metaKey);
@@ -121,10 +113,12 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
                         onKeyDown={handleKeyDown}
                         display='flex'
                         alignItems='center'
+                        width='100%'
                         sx={{
-                            height: '35px',
+                            minHeight: '35px',
                             padding: '0',
                             cursor: 'pointer',
+                            boxSizing: 'border-box',
                         }}
                     >
                         <Typography
