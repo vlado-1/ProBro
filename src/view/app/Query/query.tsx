@@ -33,6 +33,11 @@ interface IStatisticsObject {
     connectTime: number;
 }
 
+const createEmptyFilters = (): IFilters => ({
+    columns: {},
+    enabled: true,
+});
+
 function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     const [wherePhrase, setWherePhrase] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
@@ -74,10 +79,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         true
     );
 
-    const [filters, _setFilters] = useState<IFilters>({
-        columns: {},
-        enabled: true,
-    });
+    const [filters, _setFilters] = useState<IFilters>(createEmptyFilters());
     const filtersRef = useRef(filters);
     const setFilters = (data) => {
         filtersRef.current = data;
@@ -324,6 +326,27 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         );
     };
 
+    const refreshQuery = () => {
+        if (isLoading) {
+            return;
+        }
+
+        const emptyFilters = createEmptyFilters();
+        setFilters(emptyFilters);
+        setLoaded(0);
+        setRawRows([]);
+        setFormattedRows([]);
+        makeQuery(
+            0,
+            configuration.initialBatchSizeLoad,
+            '',
+            sortColumns,
+            emptyFilters,
+            configuration.batchMaxTimeout,
+            configuration.batchMinTimeout
+        );
+    };
+
     function reloadData(loaded: number) {
         setLoaded(0);
         setRawRows([]);
@@ -533,6 +556,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
                     setIsFormatted(!isFormatted);
                 }}
                 isFormatted={isFormatted}
+                onRefreshQuery={refreshQuery}
                 tableName={tableName}
                 columns={columnsCRUD}
                 rows={rowsCRUD}
