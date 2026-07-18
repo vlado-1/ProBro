@@ -1,8 +1,8 @@
-import { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 
 import { FieldRow, CommandAction, TableDetails, ICommand } from '../model';
 import DataGrid, { SelectColumn } from 'react-data-grid';
-import type { SortColumn } from 'react-data-grid';
+import type { HeaderRendererProps, SortColumn } from 'react-data-grid';
 import { Logger } from '../../../common/Logger';
 
 import * as columnName from './column.json';
@@ -10,6 +10,7 @@ import { OEDataTypePrimitive } from '@utils/oe/oeDataTypeEnum';
 import { getVSCodeAPI, getVSCodeConfiguration } from '@utils/vscode';
 import { HighlightFieldsCommand } from '@src/common/commands/fieldsCommands';
 import ColumnHeaderCell from '@app/Components/Layout/Query/ColumnHeaderCell';
+import { IFilters } from '@app/common/types';
 
 interface FieldsExplorerEvent {
     id: string;
@@ -18,6 +19,11 @@ interface FieldsExplorerEvent {
 }
 
 type Comparator = (a: FieldRow, b: FieldRow) => number;
+
+type FieldHeaderRendererProps = {
+    setCellSelected?: () => void;
+} & HeaderRendererProps<FieldRow, unknown>;
+
 function getComparator(sortColumn: string): Comparator {
     switch (sortColumn) {
         case 'order':
@@ -54,28 +60,33 @@ function rowKeyGetter(row: FieldRow) {
 }
 
 function Fields() {
-    const [rows, setRows] = useState([]);
+    const [rows, setRows] = useState<FieldRow[]>([]);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [sortColumns, setSortColumns] = useState<readonly SortColumn[]>([]);
     const [selectedRows, setSelectedRows] = useState<ReadonlySet<number>>();
     const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-    const [filteredRows, setFilteredRows] = useState(rows);
+    const [filteredRows, setFilteredRows] = useState<FieldRow[]>([]);
     const [tableName, setTableName] = useState<string>('');
 
     const vscode = getVSCodeAPI();
     const configuration = getVSCodeConfiguration();
     const logger = new Logger(configuration.logging.react);
     const lastPostedColumnsRef = useRef<string>('');
+    const configurationRef = useRef(configuration);
 
-    const [filters, setFilters] = useState({
+    const [filters, setFilters] = useState<IFilters>({
         columns: {},
         enabled: true,
     });
     const filtersRef = useRef(filters);
-    const updateFilters = (filters: { columns: object; enabled: boolean }) => {
+    const updateFilters = useCallback((filters: IFilters) => {
         filtersRef.current = filters;
         setFilters(filters);
-    };
+    }, []);
+
+    useEffect(() => {
+        configurationRef.current = configuration;
+    }, [configuration]);
 
     // Apply filters to rows when filters or rows change
     useEffect(() => {
@@ -83,14 +94,14 @@ function Fields() {
             setFilteredRows(rows);
             return;
         }
-        const cols = filters.columns || {};
+        const cols = filters.columns as Record<string, string | undefined>;
         const filtered = rows.filter((row) => {
             return Object.keys(cols).every((key) => {
-                const filterValue = (cols as any)[key];
+                const filterValue = cols[key];
                 if (filterValue === undefined || filterValue === null || filterValue === '') {
                     return true;
                 }
-                const cellValue = (row as any)[key];
+                const cellValue = (row as unknown as Record<string, unknown>)[key];
                 if (cellValue === undefined || cellValue === null) {return false;}
                 const cellStr = String(cellValue).toLowerCase();
                 const filterStr = String(filterValue).toLowerCase().trim();
@@ -136,24 +147,31 @@ function Fields() {
         });
     }, [filteredRows, sortColumns]);
 
-    columnName.columns.forEach((column) => {
-        column['headerRenderer'] = function (props) {
-            return (
-                <ColumnHeaderCell
-                    column={props.column}
-                    sortDirection={props.sortDirection}
-                    priority={props.priority}
-                    onSort={props.onSort}
-                    isCellSelected={props.isCellSelected}
-                    setCellSelected={props.setCellSelected}
-                    filters={filters}
-                    setFilters={updateFilters}
-                    configuration={configuration} 
-                    manageFocus={true}
-                />
-            );
-        };
-    });
+    const headerRenderer = useCallback((props: FieldHeaderRendererProps) => {
+        return (
+            <ColumnHeaderCell
+                column={props.column}
+                sortDirection={props.sortDirection ?? 'ASC'}
+                priority={props.priority ?? 0}
+                onSort={props.onSort}
+                isCellSelected={props.isCellSelected}
+                setCellSelected={props.setCellSelected}
+                filters={filtersRef.current}
+                setFilters={updateFilters}
+                configuration={configurationRef.current}
+                manageFocus={true}
+            />
+        );
+    }, [updateFilters]);
+
+    const columns = useMemo(
+        () =>
+            columnName.columns.map((column) => ({
+                ...column,
+                headerRenderer,
+            })),
+        [headerRenderer]
+    );
 
     useLayoutEffect(() => {
         window.addEventListener(
@@ -162,7 +180,7 @@ function Fields() {
                 const message = event.data;
                 logger.log('fields explorer data', message);
                 switch (message.command) {
-                    case 'data':
+                    case 'data': {
                         message.data.fields.forEach((field) => {
                             if (
                                 field.mandatory !== null &&
@@ -182,13 +200,14 @@ function Fields() {
                             enabled: true,
                         });
 
-                        if (message.data.selectedColumns === undefined || message.data.selectedColumns.length === 0) {
+                        const selectedColumnsList = message.data.selectedColumns ?? [];
+
+                        if (selectedColumnsList.length === 0) {
                             setSelectedRows(
                                 (): ReadonlySet<number> =>
                                     new Set(
                                         message.data.fields.map(
                                             (field: FieldRow) => {
-                                                console.log('field!!!', field);
                                                 if (
                                                     field.name ===
                                                         OEDataTypePrimitive.Rowid ||
@@ -205,9 +224,7 @@ function Fields() {
                         } else {
                             const selected = message.data.fields.filter(
                                 (row: { name: string }) =>
-                                    message.data.selectedColumns.includes(
-                                        row.name
-                                    )
+                                    selectedColumnsList.indexOf(row.name) >= 0
                             );
                             setSelectedRows(
                                 (): ReadonlySet<number> =>
@@ -220,6 +237,7 @@ function Fields() {
                             );
                         }
                         break;
+                    }
                 }
             }
         );
@@ -274,7 +292,7 @@ function Fields() {
                 </button>
             ) : rows.length > 0 ? (
                 <DataGrid
-                    columns={[SelectColumn, ...columnName.columns]}
+                    columns={[SelectColumn, ...columns]}
                     rows={sortedRows}
                     defaultColumnOptions={{
                         sortable: true,

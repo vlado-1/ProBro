@@ -3,6 +3,7 @@ import DataGrid, {
     SortColumn,
     CopyEvent,
     DataGridHandle,
+    HeaderRendererProps,
 } from 'react-data-grid';
 import { Box } from '@mui/material';
 import { IFilters } from '@app/common/types';
@@ -28,6 +29,10 @@ interface QueryFormTableProps {
     setFilters: (data: IFilters) => void;
 }
 
+type QueryHeaderRendererProps = {
+    setCellSelected?: () => void;
+} & HeaderRendererProps<unknown, unknown>;
+
 const QueryFormTable: React.FC<QueryFormTableProps> = ({
     queryGridRef,
     selected,
@@ -47,36 +52,51 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
     reloadData,
     setFilters,
 }) => {
+    const filtersRef = useRef(filters);
     const reloadDataRef = useRef(reloadData);
+    const configurationRef = useRef(configuration);
+    const setFiltersRef = useCallback(
+        (data: IFilters) => {
+            filtersRef.current = data;
+            setFilters(data);
+        },
+        [setFilters]
+    );
+
+    useEffect(() => {
+        filtersRef.current = filters;
+    }, [filters]);
 
     useEffect(() => {
         reloadDataRef.current = reloadData;
     }, [reloadData]);
 
+    useEffect(() => {
+        configurationRef.current = configuration;
+    }, [configuration]);
+
     const handleReloadData = useCallback((loaded: number) => {
         reloadDataRef.current(loaded);
     }, []);
 
-    const renderHeaderCell = useCallback(
-        (props) => {
-            return (
-                <ColumnHeaderCell
-                    column={props.column}
-                    sortDirection={props.sortDirection}
-                    priority={props.priority}
-                    onSort={props.onSort}
-                    isCellSelected={props.isCellSelected}
-                    setCellSelected={props.setCellSelected}
-                    filters={filters}
-                    setFilters={setFilters}
-                    configuration={configuration}
-                    reloadData={handleReloadData}
-                    manageFocus={true}
-                />
-            );
-        },
-        [configuration, filters, handleReloadData, setFilters]
-    );
+    function renderHeaderCell(props: QueryHeaderRendererProps): JSX.Element {
+        const { column, sortDirection, priority, onSort, isCellSelected, setCellSelected } = props;
+        return (
+            <ColumnHeaderCell
+                column={column}
+                sortDirection={sortDirection}
+                priority={priority}
+                onSort={onSort}
+                isCellSelected={isCellSelected}
+                setCellSelected={setCellSelected}
+                filters={filtersRef.current}
+                setFilters={setFiltersRef}
+                configuration={configurationRef.current}
+                reloadData={handleReloadData}
+                manageFocus={true}
+            />
+        );
+    }
 
     const adjustedColumns = useMemo(
         () =>
@@ -90,7 +110,7 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
                     headerRenderer: renderHeaderCell,
                 };
             }),
-        [renderHeaderCell, selected]
+        [selected]
     );
     const calculateHeight = () => {
         const rowCount = rows.length;
