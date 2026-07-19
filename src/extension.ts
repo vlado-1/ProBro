@@ -659,6 +659,26 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     vscode.commands.registerCommand(
+        `${Constants.globalExtensionKey}.table-search`,
+        async () => {
+            const value = await vscode.window.showInputBox({
+                title: 'Search Tables',
+                prompt: 'Filter tables by name (case-insensitive). Leave empty to clear.',
+                value: tablesListProvider.tableNameFilter,
+            });
+
+            if (value === undefined) {
+                return;
+            }
+
+            const normalizedValue = value.trim();
+            tablesListProvider.refreshTableNameFilter(
+                normalizedValue.length ? normalizedValue : undefined,
+            );
+        },
+    );
+
+    vscode.commands.registerCommand(
         `${Constants.globalExtensionKey}.dblClickCustomViewQuery`,
         () => {
             if (customViewsProvider.node === undefined) {

@@ -250,6 +250,11 @@
                 "icon": "$(list-filter)"
             },
             {
+                "command": "pro-bro.table-search",
+                "title": "pro-bro: Search Tables",
+                "icon": "$(search)"
+            },
+            {
                 "command": "pro-bro.dblClickQuery",
                 "title": "DblClickQuery"
             },
@@ -311,6 +316,11 @@
                 },
                 {
                     "command": "pro-bro.list-filter",
+                    "when": "view == pro-bro-tables",
+                    "group": "navigation"
+                },
+                {
+                    "command": "pro-bro.table-search",
                     "when": "view == pro-bro-tables",
                     "group": "navigation"
                 },

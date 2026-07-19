@@ -18,6 +18,7 @@ export class TablesListProvider implements vscode.TreeDataProvider<INode> {
     public node: TableNode | undefined;
     public tableNodes: tableNode.TableNode[] = [];
     public filters: string[] | undefined = ['UserTable'];
+    public tableNameFilter: string | undefined;
     public tableClicked: TableCount = { tableName: undefined, count: 0 };
 
     constructor(
@@ -165,6 +166,11 @@ export class TablesListProvider implements vscode.TreeDataProvider<INode> {
         this._onDidChangeTreeData.fire();
     }
 
+    public refreshTableNameFilter(tableNameFilter: string | undefined): void {
+        this.tableNameFilter = tableNameFilter;
+        this._onDidChangeTreeData.fire();
+    }
+
     public getTreeItem(
         element: INode
     ): Promise<vscode.TreeItem> | vscode.TreeItem {
@@ -230,7 +236,18 @@ export class TablesListProvider implements vscode.TreeDataProvider<INode> {
         await this.getGroupNodes();
 
         return this.tableNodes.filter((table) => {
-            return this.filters?.includes(table.tableType);
+            const matchesType = this.filters?.includes(table.tableType);
+            if (!matchesType) {
+                return false;
+            }
+
+            if (!this.tableNameFilter) {
+                return true;
+            }
+
+            return table.tableName
+                .toLowerCase()
+                .includes(this.tableNameFilter.toLowerCase());
         });
     }
 }
