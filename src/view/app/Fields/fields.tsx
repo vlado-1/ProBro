@@ -279,6 +279,7 @@ function Fields() {
             action: CommandAction.FieldsHighlightColumn,
             column: row.name,
             tableName: tableName,
+            openQueryIfNotOpen: true,
         };
         logger.log('highlight column', obj);
         vscode.postMessage(obj);

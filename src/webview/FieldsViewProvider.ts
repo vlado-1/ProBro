@@ -24,8 +24,14 @@ export class FieldsViewProvider extends PanelViewProvider {
     }
 
     public notifyQueryEditors() {
+        const selectedTableKey = this.tableNode?.getFullName(true);
+
         for (const queryEditor of this.queryEditors) {
-            if (queryEditor.tableName === this.tableNode?.tableName) {
+            if (
+                selectedTableKey
+                    ? queryEditor.getTableFullName(true) === selectedTableKey
+                    : queryEditor.tableName === this.tableNode?.tableName
+            ) {
                 queryEditor.updateFields();
             }
         }
@@ -35,10 +41,27 @@ export class FieldsViewProvider extends PanelViewProvider {
      * Highlights the QueryEditors column
      * @param {HighlightFieldsCommand} command command object
      */
-    public highlightQueryEditorsColumn(command: HighlightFieldsCommand) {
-        const firstEditor = this.queryEditors.find(
-            (val) => val.tableName === command.tableName
-        );
+    public async highlightQueryEditorsColumn(command: HighlightFieldsCommand) {
+        const selectedTableKey = this.tableNode?.getFullName(true);
+
+        let firstEditor = selectedTableKey
+            ? this.queryEditors.find(
+                (val) => val.getTableFullName(true) === selectedTableKey
+            )
+            : this.queryEditors.find(
+                (val) => val.tableName === command.tableName
+            );
+
+        if (!firstEditor && command.openQueryIfNotOpen) {
+            await vscode.commands.executeCommand('pro-bro.fieldsOpenQuery');
+            firstEditor = selectedTableKey
+                ? this.queryEditors.find(
+                    (val) => val.getTableFullName(true) === selectedTableKey
+                )
+                : this.queryEditors.find(
+                    (val) => val.tableName === command.tableName
+                );
+        }
 
         firstEditor?.panel?.reveal();
         firstEditor?.highlightColumn(command.column);
@@ -73,7 +96,7 @@ export class FieldsViewProvider extends PanelViewProvider {
                     this.notifyQueryEditors();
                     break;
                 case CommandAction.FieldsHighlightColumn:
-                    this.highlightQueryEditorsColumn(
+                    void this.highlightQueryEditorsColumn(
                         command as HighlightFieldsCommand
                     );
                     break;

@@ -366,6 +366,10 @@ export class QueryEditor {
         this.panel?.webview.postMessage(obj);
     }
 
+    public getTableFullName(includeId = true): string {
+        return this.tableNode.getFullName(includeId);
+    }
+
     private getWebviewContent(tableData: IOETableData): string {
         // Local path to main script run in the webview
         const reactAppPathOnDisk = vscode.Uri.file(

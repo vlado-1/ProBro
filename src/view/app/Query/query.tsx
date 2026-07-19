@@ -66,6 +66,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     const [recordColor, setRecordColor] = useState('red');
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const queryGridRef = useRef<DataGridHandle>(null);
+    const pendingHighlightedColumnRef = useRef<string | null>(null);
 
     const configuration = getVSCodeConfiguration();
     const logger = new Logger(configuration.logging.react);
@@ -126,8 +127,11 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         const columnIdx: number = selectedColumns.indexOf(column) + 1;
 
         if (!columnIdx || columnIdx < 0) {
+            pendingHighlightedColumnRef.current = column;
             return;
         }
+
+        pendingHighlightedColumnRef.current = null;
 
         const cellHeight = getCellHeight();
         const rowIdx = Math.floor(scrollHeight / cellHeight);
@@ -135,6 +139,14 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         // scrollToColumn doesn't work, so a workaround is to use selectCell and rowIdx
         queryGridRef.current?.selectCell({ idx: columnIdx, rowIdx: rowIdx });
     };
+
+    useEffect(() => {
+        if (!pendingHighlightedColumnRef.current) {
+            return;
+        }
+
+        highlightColumn(pendingHighlightedColumnRef.current);
+    }, [selectedColumns]);
 
     const processBooleanFields = (columns: any[], rawData: any[]) => {
         const boolField = columns.filter(

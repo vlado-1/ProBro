@@ -374,6 +374,7 @@ export async function activate(context: vscode.ExtensionContext) {
         node: TableNode,
         reloadFull = false,
     ): Promise<void> => {
+        const targetNodeKey = node.getFullName(true);
         let key;
         let cachedQueryEditor;
         let nodeList;
@@ -392,9 +393,14 @@ export async function activate(context: vscode.ExtensionContext) {
                 nodeList = tablesListProvider.tableNodes;
         }
 
-        const newNode = nodeList.find(
-            (correctNode) => node.tableName === correctNode.tableName,
-        );
+        const newNode =
+            nodeList.find(
+                (correctNode) =>
+                    correctNode.getFullName(true) === targetNodeKey,
+            ) ??
+            nodeList.find(
+                (correctNode) => node.tableName === correctNode.tableName,
+            );
 
         if (newNode) {
             node = newNode;

@@ -318,11 +318,6 @@
                     "command": "pro-bro.fieldsRefreshView",
                     "when": "view == pro-bro-fields",
                     "group": "navigation"
-                },
-                {
-                    "command": "pro-bro.fieldsOpenQuery",
-                    "when": "view == pro-bro-fields",
-                    "group": "navigation"
                 }
             ],
             "view/item/context": [
