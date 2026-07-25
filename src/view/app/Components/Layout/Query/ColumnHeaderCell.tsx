@@ -1,5 +1,5 @@
 import { Box, TextField, Typography } from '@mui/material';
-import { Fragment, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import SortArrowIcon from '../Common/SortArrorIcon';
 
 interface ColumnHeaderCellProps {
@@ -29,6 +29,14 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
 }) => {
 
     const cellRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isCellSelected) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        }
+    }, [isCellSelected]);
 
     const handleClick = (event: React.MouseEvent) => {
         onSort(event.ctrlKey || event.metaKey);
@@ -113,6 +121,7 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
                 onKeyDown={testKeyDown}
                 fullWidth={true}
                 autoFocus={isCellSelected}
+                inputRef={inputRef}
                 InputProps={{ disableUnderline: true }}
                 sx={{
                     '& .MuiInputBase-input': {

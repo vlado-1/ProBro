@@ -41,7 +41,7 @@ export class FieldsViewProvider extends PanelViewProvider {
         );
 
         firstEditor?.panel?.reveal();
-        firstEditor?.highlightColumn(command.column);
+        firstEditor?.focusColumn(command.column);
     }
 
     public resolveWebviewView(

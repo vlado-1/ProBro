@@ -26,6 +26,10 @@ interface QueryFormTableProps {
     rows: any[];
     reloadData: (loaded: number) => void;
     setFilters: (data: IFilters) => void;
+    focusRequest: {
+        requestId: number;
+        column?: string;
+    };
 }
 
 const QueryFormTable: React.FC<QueryFormTableProps> = ({
@@ -46,9 +50,11 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
     rows,
     reloadData,
     setFilters,
+    focusRequest,
 }) => {
 
     const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
+    const selectedColumnKeys = selected.map((column) => column.key).join('|');
 
     const handleOutsideClick = (event: MouseEvent) => {
         const grid = queryGridRef.current?.element?.contains(event.target as Node);
@@ -63,6 +69,27 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
             document.removeEventListener('mousedown', handleOutsideClick);
         };
     }, []);
+
+    useEffect(() => {
+        if (focusRequest.requestId === 0) {
+            return;
+        }
+
+        const selectableColumns = selected.slice(1).map((column) => column.key);
+
+        if (selectableColumns.length === 0) {
+            return;
+        }
+
+        const requestedColumn = focusRequest.column?.toLowerCase();
+        const matchedColumn = requestedColumn
+            ? selectableColumns.find(
+                  (columnKey) => columnKey.toLowerCase() === requestedColumn,
+              )
+            : undefined;
+
+        setSelectedColumn(matchedColumn ?? selectableColumns[0]);
+    }, [focusRequest.column, focusRequest.requestId, selectedColumnKeys]);
 
     const adjustedColumns = selected.map((column, index) => {
         if (index === 0) {

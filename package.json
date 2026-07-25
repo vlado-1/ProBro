@@ -30,10 +30,19 @@
         "theme": "dark"
     },
     "activationEvents": [
-        "onCommand:pro-bro.connect"
+        "onCommand:pro-bro.connect",
+        "onCommand:pro-bro.queryFromSelection",
+        "onCommand:pro-bro.openFieldsExplorerFromSelection",
+        "onCommand:pro-bro.openIndexesExplorerFromSelection"
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "submenus": [
+            {
+                "id": "pro-bro.openEdgeExplorerSelectionMenu",
+                "label": "OpenEdge Explorer"
+            }
+        ],
         "configuration": {
             "title": "pro-bro",
             "properties": {
@@ -245,6 +254,18 @@
                 "icon": "$(play)"
             },
             {
+                "command": "pro-bro.queryFromSelection",
+                "title": "Open Query Editor from Selection"
+            },
+            {
+                "command": "pro-bro.openFieldsExplorerFromSelection",
+                "title": "Open Fields Explorer from Selection"
+            },
+            {
+                "command": "pro-bro.openIndexesExplorerFromSelection",
+                "title": "Open Index Explorer from Selection"
+            },
+            {
                 "command": "pro-bro.list-filter",
                 "title": "pro-bro: List Filter",
                 "icon": "$(list-filter)"
@@ -365,6 +386,27 @@
                     "command": "pro-bro.removeCustomView",
                     "when": "view == pro-bro-custom-views",
                     "group": "inline"
+                }
+            ],
+            "editor/context": [
+                {
+                    "submenu": "pro-bro.openEdgeExplorerSelectionMenu",
+                    "when": "editorTextFocus && editorHasSelection",
+                    "group": "z_pro-bro@1"
+                }
+            ],
+            "pro-bro.openEdgeExplorerSelectionMenu": [
+                {
+                    "command": "pro-bro.queryFromSelection",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "pro-bro.openFieldsExplorerFromSelection",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "pro-bro.openIndexesExplorerFromSelection",
+                    "group": "navigation@3"
                 }
             ]
         }

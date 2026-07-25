@@ -61,6 +61,10 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     const [recordColor, setRecordColor] = useState('red');
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const queryGridRef = useRef<DataGridHandle>(null);
+    const [focusRequest, setFocusRequest] = useState<{
+        requestId: number;
+        column?: string;
+    }>({ requestId: 0 });
 
     const configuration = getVSCodeConfiguration();
     const logger = new Logger(configuration.logging.react);
@@ -117,18 +121,10 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     }, []);
 
     const highlightColumn = (column: string) => {
-        // + 1 because columns start from index 1. Rows start from index 0.
-        const columnIdx: number = selectedColumns.indexOf(column) + 1;
-
-        if (!columnIdx || columnIdx < 0) {
-            return;
-        }
-
-        const cellHeight = getCellHeight();
-        const rowIdx = Math.floor(scrollHeight / cellHeight);
-
-        // scrollToColumn doesn't work, so a workaround is to use selectCell and rowIdx
-        queryGridRef.current?.selectCell({ idx: columnIdx, rowIdx: rowIdx });
+        setFocusRequest((currentValue) => ({
+            requestId: currentValue.requestId + 1,
+            column,
+        }));
     };
 
     const processBooleanFields = (columns: any[], rawData: any[]) => {
@@ -274,6 +270,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         logger.log('got query data', message);
         switch (message.command) {
             case 'highlightColumn':
+            case 'focusColumn':
                 highlightColumn((message as HighlightFieldsCommand).column);
                 break;
             case 'columns':
@@ -484,17 +481,6 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         }
     }
 
-    const getCellHeight = () => {
-        if (configuration.gridTextSize === 'Large') {
-            return 40;
-        } else if (configuration.gridTextSize === 'Medium') {
-            return 30;
-        } else if (configuration.gridTextSize === 'Small') {
-            return 20;
-        }
-        return 30;
-    };
-
     const setRowHeight = () => {
         let height = 0;
 
@@ -567,6 +553,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
                 reloadData={reloadData}
                 configuration={configuration}
                 setFilters={setFilters}
+                focusRequest={focusRequest}
             />
             <QueryFormFooter
                 errorObj={errorObject}

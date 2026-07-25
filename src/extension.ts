@@ -422,6 +422,185 @@ export async function activate(context: vscode.ExtensionContext) {
         loadQueryEditor(node, reloadFull);
     };
 
+    const selectionIdentifierPattern = /[A-Za-z_][A-Za-z0-9_#$-]*/g;
+
+    const parseSelectionTarget = (
+        selectionText: string,
+    ): { tableName: string; columnName?: string } | undefined => {
+        const trimmedText = selectionText.trim();
+
+        if (!trimmedText) {
+            return undefined;
+        }
+
+        const dottedMatch = trimmedText.match(
+            /([A-Za-z_][A-Za-z0-9_#$-]*)\s*\.\s*([A-Za-z_][A-Za-z0-9_#$-]*)/,
+        );
+
+        if (dottedMatch) {
+            return {
+                tableName: dottedMatch[1],
+                columnName: dottedMatch[2],
+            };
+        }
+
+        const identifiers = trimmedText.match(selectionIdentifierPattern) ?? [];
+
+        if (identifiers.length === 0) {
+            return undefined;
+        }
+
+        const [tableName, columnName] = identifiers;
+
+        if (!tableName) {
+            return undefined;
+        }
+
+        return {
+            tableName,
+            columnName,
+        };
+    };
+
+    const getSelectedText = (): string | undefined => {
+        const activeEditor = vscode.window.activeTextEditor;
+
+        if (!activeEditor || activeEditor.selection.isEmpty) {
+            return undefined;
+        }
+
+        return activeEditor.document.getText(activeEditor.selection).trim();
+    };
+
+    const resolveSelectedTableNode = async (): Promise<
+        { node: TableNode; columnName?: string } | undefined
+    > => {
+        const selectedText = getSelectedText();
+
+        if (!selectedText) {
+            vscode.window.showErrorMessage(
+                'Select a table name in the editor to use ProBro.'
+            );
+            return undefined;
+        }
+
+        const parsedTarget = parseSelectionTarget(selectedText);
+
+        if (!parsedTarget) {
+            vscode.window.showErrorMessage(
+                'Select a table name in the editor to use ProBro.'
+            );
+            return undefined;
+        }
+
+        if (tablesListProvider.tableNodes.length === 0) {
+            await tablesListProvider.getFilteredTables();
+        }
+
+        const matchingTableNodes = tablesListProvider.tableNodes.filter(
+            (node) =>
+                node.tableName.toLowerCase() ===
+                parsedTarget.tableName.toLowerCase(),
+        );
+
+        if (matchingTableNodes.length === 0) {
+            vscode.window.showErrorMessage(
+                `Table "${parsedTarget.tableName}" was not found in ProBro's table list.`
+            );
+            return undefined;
+        }
+
+        const currentConnectionName = tablesListProvider.node?.connectionName;
+        const resolvedNode =
+            matchingTableNodes.find(
+                (node) => node.connectionName === currentConnectionName,
+            ) ?? matchingTableNodes[0];
+
+        return {
+            node: resolvedNode,
+            columnName: parsedTarget.columnName,
+        };
+    };
+
+    const ensureTableColumns = async (node: TableNode): Promise<string[]> => {
+        if (!node.cache?.fields?.length) {
+            await tablesListProvider.displayData(node, false);
+        }
+
+        return node.cache?.fields.map((field) => field.name) ?? [];
+    };
+
+    const getFocusColumnName = (
+        requestedColumnName: string | undefined,
+        availableColumns: string[],
+    ): string | undefined => {
+        if (availableColumns.length === 0) {
+            return undefined;
+        }
+
+        if (requestedColumnName) {
+            const matchingColumn = availableColumns.find(
+                (columnName) =>
+                    columnName.toLowerCase() === requestedColumnName.toLowerCase(),
+            );
+
+            if (matchingColumn) {
+                return matchingColumn;
+            }
+        }
+
+        return availableColumns[0];
+    };
+
+    const openQueryEditorFromSelection = async (): Promise<void> => {
+        const resolvedSelection = await resolveSelectedTableNode();
+
+        if (!resolvedSelection) {
+            return;
+        }
+
+        const { node, columnName } = resolvedSelection;
+        const availableColumns = await ensureTableColumns(node);
+
+        tablesListProvider.selectDbConfig(node);
+        loadQueryEditor(node, true);
+
+        const queryEditor = queryEditorCache.getQueryEditor(
+            node.getFullName(true) ?? '',
+        );
+        const focusColumnName = getFocusColumnName(
+            columnName,
+            availableColumns,
+        );
+
+        if (queryEditor) {
+            queryEditor.focusColumn(focusColumnName ?? '');
+        }
+    };
+
+    const openExplorerFromSelection = async (
+        provider: FieldsViewProvider | IndexesViewProvider,
+        viewId: string,
+    ): Promise<void> => {
+        const resolvedSelection = await resolveSelectedTableNode();
+
+        if (!resolvedSelection) {
+            return;
+        }
+
+        const { node } = resolvedSelection;
+
+        tablesListProvider.selectDbConfig(node);
+        provider.tableNode = node;
+
+        await vscode.commands.executeCommand(`workbench.view.extension.${viewId}`);
+        (provider._view as unknown as
+            | { show?: (preserveFocus?: boolean) => void }
+            | undefined)?.show?.(false);
+
+        await tablesListProvider.displayData(node, false);
+    };
+
     context.subscriptions.push(
         vscode.commands.registerCommand(
             `${Constants.globalExtensionKey}.saveCustomView`,
@@ -523,6 +702,27 @@ export async function activate(context: vscode.ExtensionContext) {
 
                 loadQueryEditor(tablesListProvider.node);
             },
+        ),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            `${Constants.globalExtensionKey}.queryFromSelection`,
+            () => openQueryEditorFromSelection(),
+        ),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            `${Constants.globalExtensionKey}.openFieldsExplorerFromSelection`,
+            () => openExplorerFromSelection(fieldsProvider, 'pro-bro-fields'),
+        ),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            `${Constants.globalExtensionKey}.openIndexesExplorerFromSelection`,
+            () => openExplorerFromSelection(indexesProvider, 'pro-bro-indexes'),
         ),
     );
 
