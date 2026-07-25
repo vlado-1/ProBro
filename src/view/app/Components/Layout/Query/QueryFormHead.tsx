@@ -1,11 +1,12 @@
 import ExportPopup from '@Query/Export';
 import { ExportPopupProps } from '@Query/Export/export';
 import { ProBroButton } from '@assets/button';
+import RefreshTwoToneIcon from '@mui/icons-material/RefreshTwoTone';
 import PlayArrowTwoToneIcon from '@mui/icons-material/PlayArrowTwoTone';
 import { MouseEventHandler, useEffect } from 'react';
 import UpdatePopup from '@Query/Update';
 import { UpdatePopupProps } from '@Query/Update/update';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Tooltip, Typography } from '@mui/material';
 import QueryAutocompleteInput, {
     QueryAutocompleteInputProps,
 } from './QueryAutocompleteInput';
@@ -24,6 +25,7 @@ interface QueryFormHeadProps
     formatButtonOnClick: MouseEventHandler<HTMLButtonElement>;
     isFormatted: boolean;
     setIsFormatted: (value: boolean) => void;
+    onRefreshQuery: MouseEventHandler<HTMLButtonElement>;
 }
 
 /**
@@ -35,6 +37,7 @@ const QueryFormHead: React.FC<QueryFormHeadProps> = ({
     onLoad,
     onButtonClick,
     setIsFormatted,
+    onRefreshQuery,
     ...otherProps
 }) => {
     useEffect(() => {
@@ -60,6 +63,16 @@ const QueryFormHead: React.FC<QueryFormHeadProps> = ({
                     >
                         {isWindowSmall ? '' : 'Query'}
                     </ProBroButton>
+                    <Tooltip title='Clear filters and refresh'>
+                        <span>
+                            <ProBroButton
+                                startIcon={<RefreshTwoToneIcon />}
+                                onClick={onRefreshQuery}
+                            >
+                                {isWindowSmall ? '' : 'Refresh'}
+                            </ProBroButton>
+                        </span>
+                    </Tooltip>
                     <ExportPopup
                         wherePhrase={otherProps.wherePhrase}
                         sortColumns={otherProps.sortColumns}

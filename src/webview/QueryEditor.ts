@@ -34,6 +34,7 @@ export class QueryEditor {
         this.configuration.get('logging.node') ?? false
     );
     private customViewData: ICustomView | undefined;
+    private initialFocusColumn: string | undefined;
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -41,11 +42,13 @@ export class QueryEditor {
         private tableListProvider: TablesListProvider,
         private favoritesProvider: FavoritesProvider,
         private customViewProvider: CustomViewProvider,
-        private fieldProvider: FieldsViewProvider
+        private fieldProvider: FieldsViewProvider,
+        initialFocusColumn?: string
     ) {
         this.extensionPath = context.asAbsolutePath('');
         this.tableName = tableNode.tableName;
         this.fieldsProvider = fieldProvider;
+        this.initialFocusColumn = initialFocusColumn;
 
         let config: IConfig | undefined;
         switch (this.tableNode.source) {
@@ -370,6 +373,10 @@ export class QueryEditor {
         this.focusColumn(column);
     }
 
+    public getTableFullName(includeId = true): string {
+        return this.tableNode.getFullName(includeId);
+    }
+
     private getWebviewContent(tableData: IOETableData): string {
         // Local path to main script run in the webview
         const reactAppPathOnDisk = vscode.Uri.file(
@@ -404,6 +411,7 @@ export class QueryEditor {
           window.tableName = ${JSON.stringify(this.tableNode.tableName)};
           window.configuration = ${JSON.stringify(this.configuration)};
           window.isReadOnly = ${JSON.stringify(this.readOnly)};
+                    window.initialFocusColumn = ${JSON.stringify(this.initialFocusColumn)};
         </script>
     </head>
     <body>

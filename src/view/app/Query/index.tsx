@@ -13,6 +13,7 @@ declare global {
         tableName: string;
         configuration: ISettings;
         isReadOnly: boolean;
+        initialFocusColumn?: string;
     }
 }
 

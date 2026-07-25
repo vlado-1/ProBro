@@ -1,4 +1,4 @@
-import { Fragment, UIEvent, useEffect, useRef, useState } from 'react';
+import { Fragment, UIEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     SortColumn,
@@ -33,6 +33,11 @@ interface IStatisticsObject {
     connectTime: number;
 }
 
+const createEmptyFilters = (): IFilters => ({
+    columns: {},
+    enabled: true,
+});
+
 function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     const [wherePhrase, setWherePhrase] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
@@ -61,10 +66,12 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     const [recordColor, setRecordColor] = useState('red');
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const queryGridRef = useRef<DataGridHandle>(null);
-    const [focusRequest, setFocusRequest] = useState<{
-        requestId: number;
-        column?: string;
-    }>({ requestId: 0 });
+    const [focusedColumn, setFocusedColumn] = useState<string | null>(
+        window.initialFocusColumn ?? null,
+    );
+    const pendingHighlightedColumnRef = useRef<string | null>(
+        window.initialFocusColumn ?? null,
+    );
 
     const configuration = getVSCodeConfiguration();
     const logger = new Logger(configuration.logging.react);
@@ -78,15 +85,15 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         true
     );
 
-    const [filters, _setFilters] = useState<IFilters>({
-        columns: {},
-        enabled: true,
-    });
+    const [filters, _setFilters] = useState<IFilters>(createEmptyFilters());
     const filtersRef = useRef(filters);
-    const setFilters = (data) => {
-        filtersRef.current = data;
-        _setFilters(data);
-    };
+    const setFilters = useMemo(
+        () => (data: IFilters) => {
+            filtersRef.current = data;
+            _setFilters(data);
+        },
+        []
+    );
 
     const windowResize = () => {
         setWindowHeight(window.innerHeight);
@@ -121,11 +128,23 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     }, []);
 
     const highlightColumn = (column: string) => {
-        setFocusRequest((currentValue) => ({
-            requestId: currentValue.requestId + 1,
-            column,
-        }));
+        setFocusedColumn(column);
+
+        if (selectedColumns.indexOf(column) < 0) {
+            pendingHighlightedColumnRef.current = column;
+            return;
+        }
+
+        pendingHighlightedColumnRef.current = null;
     };
+
+    useEffect(() => {
+        if (!pendingHighlightedColumnRef.current) {
+            return;
+        }
+
+        highlightColumn(pendingHighlightedColumnRef.current);
+    }, [selectedColumns]);
 
     const processBooleanFields = (columns: any[], rawData: any[]) => {
         const boolField = columns.filter(
@@ -265,9 +284,10 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         }
     };
 
-    const messageEvent = (event) => {
+    const messageEventRef = useRef<(event: MessageEvent) => void>(() => undefined);
+
+    messageEventRef.current = (event) => {
         const message = event.data;
-        logger.log('got query data', message);
         switch (message.command) {
             case 'highlightColumn':
             case 'focusColumn':
@@ -295,11 +315,15 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
     };
 
     useEffect(() => {
-        window.addEventListener('message', messageEvent);
-        return () => {
-            window.removeEventListener('message', messageEvent);
+        const stableMessageEvent = (event: MessageEvent) => {
+            messageEventRef.current?.(event);
         };
-    });
+
+        window.addEventListener('message', stableMessageEvent);
+        return () => {
+            window.removeEventListener('message', stableMessageEvent);
+        };
+    }, []);
 
     const prepareQuery = () => {
         if (isLoading) {
@@ -317,6 +341,27 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
             sortColumns,
             filters,
             configuration.batchMaxTimeout /*ms for data retrieval*/,
+            configuration.batchMinTimeout
+        );
+    };
+
+    const refreshQuery = () => {
+        if (isLoading) {
+            return;
+        }
+
+        const emptyFilters = createEmptyFilters();
+        setFilters(emptyFilters);
+        setLoaded(0);
+        setRawRows([]);
+        setFormattedRows([]);
+        makeQuery(
+            0,
+            configuration.initialBatchSizeLoad,
+            '',
+            sortColumns,
+            emptyFilters,
+            configuration.batchMaxTimeout,
             configuration.batchMinTimeout
         );
     };
@@ -456,24 +501,23 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
         setOpen(true);
     };
 
-    function filterColumns() {
-        if (selectedColumns.length !== 0) {
-            const selection = columns.filter((column) => {
-                let testColumn = column.key;
-                if (/\[\d+\]$/.test(column.key)) {
-                    testColumn = column.key.match(/[^[]+/)[0];
-                }
-                return (
-                    selectedColumns.includes(testColumn) ||
-                    testColumn === 'select-row'
-                );
-            });
-            return selection;
-        } else {
+    const selected = useMemo(() => {
+        if (selectedColumns.length === 0) {
             return [];
         }
-    }
-    const selected = filterColumns();
+
+        return columns.filter((column) => {
+            let testColumn = column.key;
+            if (/\[\d+\]$/.test(column.key)) {
+                testColumn = column.key.match(/[^[]+/)[0];
+            }
+
+            return (
+                selectedColumns.includes(testColumn) ||
+                testColumn === 'select-row'
+            );
+        });
+    }, [columns, selectedColumns]);
 
     function handleCopy({ sourceRow, sourceColumnKey }: CopyEvent<any>): void {
         if (window.isSecureContext) {
@@ -519,6 +563,7 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
                     setIsFormatted(!isFormatted);
                 }}
                 isFormatted={isFormatted}
+                onRefreshQuery={refreshQuery}
                 tableName={tableName}
                 columns={columnsCRUD}
                 rows={rowsCRUD}
@@ -553,7 +598,8 @@ function QueryForm({ tableData, tableName, isReadOnly }: IConfigProps) {
                 reloadData={reloadData}
                 configuration={configuration}
                 setFilters={setFilters}
-                focusRequest={focusRequest}
+                focusedColumn={focusedColumn}
+                setFocusedColumn={setFocusedColumn}
             />
             <QueryFormFooter
                 errorObj={errorObject}

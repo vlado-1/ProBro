@@ -1,24 +1,36 @@
 import { Box, TextField, Typography } from '@mui/material';
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment, useLayoutEffect, useRef } from 'react';
 import SortArrowIcon from '../Common/SortArrorIcon';
+import { IFilters } from '@app/common/types';
+
+type ColumnHeader = {
+    key: string;
+    name: React.ReactNode;
+};
+
+type ColumnHeaderConfiguration = {
+    initialBatchSizeLoad: number;
+    filterAsYouType?: boolean;
+};
 
 interface ColumnHeaderCellProps {
-    column: any;
+    column: ColumnHeader;
     sortDirection: 'ASC' | 'DESC';
     priority: number;
     onSort: (multiColumnSort: boolean) => void;
     isCellSelected: boolean;
     setCellSelected?: () => void;
-    filters: any;
-    setFilters: (filters: any) => void;
-    configuration: any;
+    filters: IFilters;
+    setFilters: (filters: IFilters) => void;
+    configuration: ColumnHeaderConfiguration;
     reloadData?: (batchSize: number) => void;
+    manageFocus?: boolean;
+    filterCellHeight?: number;
 }
 
 const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
     column,
     sortDirection,
-    priority,
     onSort,
     isCellSelected,
     setCellSelected,
@@ -26,21 +38,28 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
     setFilters,
     configuration,
     reloadData,
+    manageFocus = false,
+    filterCellHeight = 30,
 }) => {
-
     const cellRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const shouldSelectTextOnFocusRef = useRef(true);
+    const filterColumns = filters.columns as Record<string, string | undefined>;
 
-    useEffect(() => {
-        if (isCellSelected) {
-            inputRef.current?.focus();
-            inputRef.current?.select();
+    useLayoutEffect(() => {
+        if (!manageFocus || !isCellSelected) {
+            return;
         }
-    }, [isCellSelected]);
+
+        inputRef.current?.focus({ preventScroll: true });
+    }, [isCellSelected, manageFocus]);
 
     const handleClick = (event: React.MouseEvent) => {
-        onSort(event.ctrlKey || event.metaKey);
+        if (manageFocus) {
+            setCellSelected?.();
+        }
 
+        onSort(event.ctrlKey || event.metaKey);
     };
 
     const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -50,55 +69,65 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
         }
     };
 
-    const timerRef = useRef<any>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleKeyInputTimeout = () => {
         if (timerRef.current) {
             clearTimeout(timerRef.current);
         }
+
         timerRef.current = setTimeout(() => {
-            reloadData && reloadData(configuration.initialBatchSizeLoad);
+            reloadData?.(configuration.initialBatchSizeLoad);
         }, 500);
-        setCellSelected && setCellSelected();
     };
 
     const testKeyDown = (event: React.KeyboardEvent) => {
         if (event.key === 'Enter') {
             event.preventDefault();
-            reloadData && reloadData(configuration.initialBatchSizeLoad);
-            setCellSelected && setCellSelected();
+            reloadData?.(configuration.initialBatchSizeLoad);
         }
     };
 
-    const handleInputKeyDown = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleInputKeyDown = (
+        event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
         const value = event.target.value;
-        
-        const tempFilters = {
+        shouldSelectTextOnFocusRef.current = false;
+
+        const tempFilters: IFilters = {
             ...filters,
             columns: {
-                ...(filters?.columns || {}),
+                ...(filters.columns as Record<string, string | undefined>),
                 [column.key]: value,
             },
         };
+
         setFilters(tempFilters);
+
         if (configuration.filterAsYouType === true) {
             handleKeyInputTimeout();
         }
     };
+
     return (
         <Fragment>
             {filters.enabled && (
                 <Box>
+                <Box>
                     <Box
                         ref={cellRef}
                         tabIndex={-1}
-                        onClick={handleClick}
+                        onClick={(event) => {
+                            handleClick(event);
+                        }}
                         onKeyDown={handleKeyDown}
                         display='flex'
                         alignItems='center'
+                        width='100%'
                         sx={{
-                            height: '35px',
+                            minHeight: '35px',
                             padding: '0',
                             cursor: 'pointer',
+                            boxSizing: 'border-box',
                         }}
                     >
                         <Typography
@@ -109,29 +138,60 @@ const ColumnHeaderCell: React.FC<ColumnHeaderCellProps> = ({
                             {column.name}
                         </Typography>
                         <SortArrowIcon sortDirection={sortDirection} />
-                        {priority}
                     </Box>
                 </Box>
+                </Box>
             )}
-            <TextField
-                variant='standard'
-                size='small'
-                value={filters?.columns?.[column.key] ?? ''}
-                onChange={handleInputKeyDown}
-                onKeyDown={testKeyDown}
-                fullWidth={true}
-                autoFocus={isCellSelected}
-                inputRef={inputRef}
-                InputProps={{ disableUnderline: true }}
+            <Box
                 sx={{
-                    '& .MuiInputBase-input': {
-                        fontSize: '0.8rem',
-                        padding: '4px',
-                        backgroundColor: 'var(--vscode-input-background, #3c3c3c)',
-                        color: 'var(--vscode-input-foreground, #cccccc)',
-                    },
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: `${filterCellHeight}px`,
+                    minHeight: `${filterCellHeight}px`,
+                    padding: '0 4px',
+                    boxSizing: 'border-box',
+                    backgroundColor: 'var(--vscode-input-background, #3c3c3c)',
+                    position: 'relative',
                 }}
-            />
+            >
+                <TextField
+                    variant='standard'
+                    size='small'
+                    value={filterColumns[column.key] ?? ''}
+                    onChange={handleInputKeyDown}
+                    onKeyDown={testKeyDown}
+                    onFocus={(event) => {
+                        if (manageFocus && !isCellSelected) {
+                            setCellSelected?.();
+                        }
+
+                        if (
+                            event.currentTarget.value &&
+                            shouldSelectTextOnFocusRef.current
+                        ) {
+                            event.currentTarget.select();
+                            shouldSelectTextOnFocusRef.current = false;
+                        }
+                    }}
+                    onBlur={() => {
+                        shouldSelectTextOnFocusRef.current = true;
+                    }}
+                    inputRef={inputRef}
+                    fullWidth={true}
+                    InputProps={{ disableUnderline: true }}
+                    sx={{
+                        margin: 0,
+                        flex: 1,
+                        marginBottom: '1px',
+                        '& .MuiInputBase-input': {
+                            fontSize: '0.8rem',
+                            padding: '2px 0',
+                            backgroundColor: 'transparent',
+                            color: 'var(--vscode-input-foreground, #cccccc)',
+                        },
+                    }}
+                />
+            </Box>
         </Fragment>
     );
 };

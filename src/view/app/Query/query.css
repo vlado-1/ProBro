@@ -49,7 +49,7 @@ body.vscode-dark .rdg-row-even {
 }
 
 .filter-cell {
-    line-height: 35px;
+    line-height: normal;
     padding: 0;
 }
 
@@ -59,7 +59,7 @@ body.vscode-dark .rdg-row-even {
 }
 
 .filter-cell>div:first-child {
-    border-block-end: 1px solid var(--rdg-border-color);
+    border-block-end: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border, rgba(255, 255, 255, 0.12)));
 }
 
 .rdg-cell {

@@ -1,8 +1,9 @@
-import { UIEvent, useEffect, useState } from 'react';
+import { UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DataGrid, {
     SortColumn,
     CopyEvent,
     DataGridHandle,
+    HeaderRendererProps,
 } from 'react-data-grid';
 import { Box } from '@mui/material';
 import { IFilters } from '@app/common/types';
@@ -11,6 +12,8 @@ import ColumnHeaderCell from './ColumnHeaderCell';
 interface QueryFormTableProps {
     queryGridRef: React.RefObject<DataGridHandle>;
     selected: any[];
+    focusedColumn?: string | null;
+    setFocusedColumn: (column: string) => void;
     sortColumns: SortColumn[];
     handleScroll: (event: UIEvent<HTMLDivElement>) => void;
     onSortClick: (inputSortColumns: SortColumn[]) => void;
@@ -26,11 +29,11 @@ interface QueryFormTableProps {
     rows: any[];
     reloadData: (loaded: number) => void;
     setFilters: (data: IFilters) => void;
-    focusRequest: {
-        requestId: number;
-        column?: string;
-    };
 }
+
+type QueryHeaderRendererProps = {
+    setCellSelected?: () => void;
+} & HeaderRendererProps<unknown, unknown>;
 
 const QueryFormTable: React.FC<QueryFormTableProps> = ({
     queryGridRef,
@@ -50,28 +53,37 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
     rows,
     reloadData,
     setFilters,
-    focusRequest,
+    focusedColumn,
+    setFocusedColumn,
 }) => {
-
-    const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
-    const selectedColumnKeys = selected.map((column) => column.key).join('|');
-
-    const handleOutsideClick = (event: MouseEvent) => {
-        const grid = queryGridRef.current?.element?.contains(event.target as Node);
-        if (!grid) {
-            setSelectedColumn(null);
-        }
-    };
-
-    useEffect(() => {
-        document.addEventListener('mousedown', handleOutsideClick);
-        return () => {
-            document.removeEventListener('mousedown', handleOutsideClick);
-        };
-    }, []);
+    const filtersRef = useRef(filters);
+    const reloadDataRef = useRef(reloadData);
+    const configurationRef = useRef(configuration);
+    const [selectedColumn, setSelectedColumn] = useState<string | null>(
+        null,
+    );
+    const setFiltersRef = useCallback(
+        (data: IFilters) => {
+            filtersRef.current = data;
+            setFilters(data);
+        },
+        [setFilters]
+    );
 
     useEffect(() => {
-        if (focusRequest.requestId === 0) {
+        filtersRef.current = filters;
+    }, [filters]);
+
+    useEffect(() => {
+        reloadDataRef.current = reloadData;
+    }, [reloadData]);
+
+    useEffect(() => {
+        configurationRef.current = configuration;
+    }, [configuration]);
+
+    useEffect(() => {
+        if (!focusedColumn) {
             return;
         }
 
@@ -81,41 +93,16 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
             return;
         }
 
-        const requestedColumn = focusRequest.column?.toLowerCase();
-        const matchedColumn = requestedColumn
-            ? selectableColumns.find(
-                  (columnKey) => columnKey.toLowerCase() === requestedColumn,
-              )
-            : undefined;
+        const matchedColumn = selectableColumns.find(
+            (columnKey) => columnKey.toLowerCase() === focusedColumn.toLowerCase(),
+        );
 
         setSelectedColumn(matchedColumn ?? selectableColumns[0]);
-    }, [focusRequest.column, focusRequest.requestId, selectedColumnKeys]);
+    }, [focusedColumn, selected]);
 
-    const adjustedColumns = selected.map((column, index) => {
-        if (index === 0) {
-            return column;
-        }
-
-        return {
-            ...column,
-            headerRenderer: function (props) {
-                return (
-                    <ColumnHeaderCell
-                        column={props.column}
-                        sortDirection={props.sortDirection}
-                        priority={props.priority}
-                        onSort={props.onSort}
-                        filters={filters}
-                        isCellSelected={selectedColumn === props.column.key}
-                        setCellSelected={() => setSelectedColumn(props.column.key)}
-                        setFilters={setFilters}
-                        configuration={configuration}
-                        reloadData={reloadData}
-                    />
-                );
-            },
-        };
-    });
+    const handleReloadData = useCallback((loaded: number) => {
+        reloadDataRef.current(loaded);
+    }, []);
     const calculateHeight = () => {
         const rowCount = rows.length;
         const cellHeight = getCellHeight();
@@ -135,6 +122,59 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
         return 30;
     };
 
+    const filterCellHeight = getCellHeight() - 1;
+
+    const renderHeaderCell = useCallback(
+        (props: QueryHeaderRendererProps): JSX.Element => {
+            const {
+                column,
+                sortDirection,
+                priority,
+                onSort,
+                isCellSelected,
+            } = props;
+
+            return (
+                <ColumnHeaderCell
+                    column={column}
+                    sortDirection={sortDirection}
+                    priority={priority}
+                    onSort={onSort}
+                    isCellSelected={selectedColumn === props.column.key || isCellSelected}
+                    setCellSelected={() => {
+                        if (selectedColumn !== null) {
+                            setSelectedColumn(null);
+                        }
+
+                        props.setCellSelected?.();
+                    }}
+                    filters={filtersRef.current}
+                    setFilters={setFiltersRef}
+                    configuration={configurationRef.current}
+                    reloadData={handleReloadData}
+                    manageFocus={true}
+                    filterCellHeight={filterCellHeight}
+                />
+            );
+        },
+        [filterCellHeight, selectedColumn]
+    );
+
+    const adjustedColumns = useMemo(
+        () =>
+            selected.map((column, index) => {
+                if (index === 0) {
+                    return column;
+                }
+
+                return {
+                    ...column,
+                    headerRenderer: renderHeaderCell,
+                };
+            }),
+        [selected, renderHeaderCell]
+    );
+
     return (
         <Box>
             <DataGrid
@@ -149,7 +189,7 @@ const QueryFormTable: React.FC<QueryFormTableProps> = ({
                 onScroll={handleScroll}
                 onSortColumnsChange={onSortClick}
                 className={filters.enabled ? 'filter-cell' : ''}
-                headerRowHeight={filters.enabled ? 70 : undefined}
+                headerRowHeight={filters.enabled ? 35 + filterCellHeight : undefined}
                 style={{
                     height: calculateHeight(),
                     overflow: 'auto',

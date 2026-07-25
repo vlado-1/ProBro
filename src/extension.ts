@@ -171,8 +171,8 @@ export async function activate(context: vscode.ExtensionContext) {
         )
             ? oeRuntimes.find((runtime) => runtime.name === oejRuntimeName)
             : oeRuntimes.find(
-                  (runtime) => runtime.name === defaultRuntimeName,
-              ) || oeRuntimes[0];
+                (runtime) => runtime.name === defaultRuntimeName,
+            ) || oeRuntimes[0];
     } else {
         vscode.window.showWarningMessage(
             'No OpenEdge runtime configured on this machine.',
@@ -335,7 +335,11 @@ export async function activate(context: vscode.ExtensionContext) {
     /**
      * Creates a new query editor or if already open, then reveals it from cache and refetch data
      */
-    const loadQueryEditor = (node: TableNode, reloadFull = false): void => {
+    const loadQueryEditor = (
+        node: TableNode,
+        reloadFull = false,
+        initialFocusColumn?: string,
+    ): void => {
         const key = node.getFullName(true) ?? '';
 
         const cachedQueryEditor = queryEditorCache.getQueryEditor(key);
@@ -346,6 +350,9 @@ export async function activate(context: vscode.ExtensionContext) {
             }
             cachedQueryEditor.panel?.reveal();
             cachedQueryEditor.refetchData();
+            if (initialFocusColumn) {
+                cachedQueryEditor.focusColumn(initialFocusColumn);
+            }
             return;
         }
 
@@ -356,6 +363,7 @@ export async function activate(context: vscode.ExtensionContext) {
             favoritesProvider,
             customViewsProvider,
             fieldsProvider,
+            initialFocusColumn,
         );
 
         queryEditorCache.setQueryEditor(key, newQueryEditor);
@@ -373,7 +381,9 @@ export async function activate(context: vscode.ExtensionContext) {
     const queryEditorDblClick = async (
         node: TableNode,
         reloadFull = false,
+        initialFocusColumn?: string,
     ): Promise<void> => {
+        const targetNodeKey = node.getFullName(true);
         let key;
         let cachedQueryEditor;
         let nodeList;
@@ -392,9 +402,14 @@ export async function activate(context: vscode.ExtensionContext) {
                 nodeList = tablesListProvider.tableNodes;
         }
 
-        const newNode = nodeList.find(
-            (correctNode) => node.tableName === correctNode.tableName,
-        );
+        const newNode =
+            nodeList.find(
+                (correctNode) =>
+                    correctNode.getFullName(true) === targetNodeKey,
+            ) ??
+            nodeList.find(
+                (correctNode) => node.tableName === correctNode.tableName,
+            );
 
         if (newNode) {
             node = newNode;
@@ -419,7 +434,7 @@ export async function activate(context: vscode.ExtensionContext) {
             }
         }
 
-        loadQueryEditor(node, reloadFull);
+        loadQueryEditor(node, reloadFull, initialFocusColumn);
     };
 
     const selectionIdentifierPattern = /[A-Za-z_][A-Za-z0-9_#$-]*/g;
@@ -433,9 +448,13 @@ export async function activate(context: vscode.ExtensionContext) {
             return undefined;
         }
 
-        const dottedMatch = trimmedText.match(
-            /([A-Za-z_][A-Za-z0-9_#$-]*)\s*\.\s*([A-Za-z_][A-Za-z0-9_#$-]*)/,
-        );
+        const dottedPattern = /([A-Za-z_][A-Za-z0-9_#$-]*)\s*\.\s*([A-Za-z_][A-Za-z0-9_#$-]*)/g;
+        let dottedMatch: RegExpExecArray | null = null;
+        let currentDottedMatch: RegExpExecArray | null;
+
+        while ((currentDottedMatch = dottedPattern.exec(trimmedText)) !== null) {
+            dottedMatch = currentDottedMatch;
+        }
 
         if (dottedMatch) {
             return {
@@ -450,7 +469,14 @@ export async function activate(context: vscode.ExtensionContext) {
             return undefined;
         }
 
-        const [tableName, columnName] = identifiers;
+        if (identifiers.length === 1) {
+            return {
+                tableName: identifiers[0],
+            };
+        }
+
+        const tableName = identifiers[identifiers.length - 2];
+        const columnName = identifiers[identifiers.length - 1];
 
         if (!tableName) {
             return undefined;
@@ -561,16 +587,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
         const { node, columnName } = resolvedSelection;
         const availableColumns = await ensureTableColumns(node);
-
-        tablesListProvider.selectDbConfig(node);
-        loadQueryEditor(node, true);
-
-        const queryEditor = queryEditorCache.getQueryEditor(
-            node.getFullName(true) ?? '',
-        );
         const focusColumnName = getFocusColumnName(
             columnName,
             availableColumns,
+        );
+
+        tablesListProvider.selectDbConfig(node);
+        loadQueryEditor(node, true, focusColumnName);
+
+        const queryEditor = queryEditorCache.getQueryEditor(
+            node.getFullName(true) ?? '',
         );
 
         if (queryEditor) {
@@ -699,7 +725,6 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (tablesListProvider.node === undefined) {
                     return;
                 }
-
                 loadQueryEditor(tablesListProvider.node);
             },
         ),
@@ -708,7 +733,43 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             `${Constants.globalExtensionKey}.queryFromSelection`,
-            () => openQueryEditorFromSelection(),
+            async () => {
+                await openQueryEditorFromSelection();
+            },
+        ),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            `${Constants.globalExtensionKey}.fieldsRefreshView`,
+            () => {
+                const tableNode = fieldsProvider.tableNode;
+                if (!tableNode) {
+                    vscode.window.showInformationMessage(
+                        'Select a table before refreshing Fields Explorer.',
+                    );
+                    return;
+                }
+
+                fieldsProvider.tableListProvider?.displayData(tableNode, false);
+            },
+        ),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            `${Constants.globalExtensionKey}.fieldsOpenQuery`,
+            async (focusColumn?: string) => {
+                const tableNode = fieldsProvider.tableNode;
+                if (!tableNode) {
+                    vscode.window.showInformationMessage(
+                        'Select a table before opening the query editor.',
+                    );
+                    return;
+                }
+
+                await queryEditorDblClick(tableNode, true, focusColumn);
+            },
         ),
     );
 
